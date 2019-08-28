@@ -1,0 +1,688 @@
+>=>GraphConsoleTest.py
+# File: GraphConsoleTest.py
+
+"""
+This program implements an interactive test of the graph.py module.
+The program starts off with an empty graph and then accepts commands
+the user.
+"""
+
+from consoletest import ConsoleTest
+from graph import Graph, Node, Arc
+from graphtools import readGraphData, dfs, bfs
+from tokenscanner import TokenScanner
+
+class GraphConsoleTest(ConsoleTest):
+
+    def __init__(self):
+        self.graph = Graph()
+        self.run()
+
+# Commands
+
+    def clearCommand(self, scanner):
+        """clear -- Clears the graph"""
+
+    def loadCommand(self, scanner):
+        """load filename -- Loads the graph data from the file"""
+        filename = scanner.nextToken()
+        ttype = scanner.getTokenType(filename)
+        if ttype == TokenScanner.WORD:
+            filename += ".txt"
+        elif ttype == TokenScanner.STRING:
+            filename = scanner.getStringValue(filename)
+        else:
+            print("Illegal file name")
+        readGraphData(self.graph, filename)
+
+    def nodeCommand(self, scanner):
+        """node name -- Inserts a node with the specified name"""
+        self.graph.addNode(self.scanNodeName(scanner))
+
+    def arcCommand(self, scanner):
+        """arc n1 n2 [cost] -- Adds an arc from n1 to n2"""
+        n1 = self.scanNodeName(scanner)
+        if self.graph.findNode(n1) is None:
+            n1 = self.graph.addNode(n1)
+        n2 = self.scanNodeName(scanner)
+        if self.graph.findNode(n2) is None:
+            n2 = self.graph.addNode(n2)
+        cost = 0
+        if scanner.hasMoreTokens():
+            cost = float(scanner.nextToken())
+        self.graph.addArc(n1, n2, cost)
+
+    def arcsCommand(self, scanner):
+        """arcs -- Lists the arcs in the graph"""
+        for arc in self.graph.getArcs():
+            start = arc.getStart()
+            finish = arc.getFinish()
+            arcstr = str(arc)
+            if finish.isConnectedTo(start):
+                if start < finish:
+                    arcstr = arcstr.replace(" -> ", " - ")
+                    print(arcstr)
+            else:
+                print(arcstr)
+
+    def arcsFromCommand(self, scanner):
+        """arcsFrom node -- Lists the arcs that start at node"""
+        name = self.scanNodeName(scanner)
+        if name is None:
+            print("Missing node name")
+        else:
+            node = self.graph.findNode(name)
+            if node is None:
+                print("No node named " + name)
+            else:
+                for arc in node.getArcsFrom():
+                    start = arc.getStart()
+                    finish = arc.getFinish()
+                    arcstr = str(arc)
+                    if start.isConnectedTo(finish):
+                        arcstr = arcstr.replace(" -> ", " - ")
+                    print(arcstr)
+
+    def arcsToCommand(self, scanner):
+        """arcsTo node -- Lists the arcs that end at node"""
+        name = self.scanNodeName(scanner)
+        if name is None:
+            print("Missing node name")
+        else:
+            node = self.graph.findNode(name)
+            if node is None:
+                print("No node named " + name)
+            else:
+                for arc in node.getArcsTo():
+                    start = arc.getStart()
+                    finish = arc.getFinish()
+                    arcstr = str(arc)
+                    if finish.isConnectedTo(start):
+                        arcstr = arcstr.replace(" -> ", " - ")
+                    print(arcstr)
+
+    def nodesCommand(self, scanner):
+        """nodes -- Lists the nodes in the graph"""
+        for node in self.graph.getNodes():
+            print(node)
+
+    def neighborsCommand(self, scanner):
+        """neighbors node -- Lists the nodes to which node connects"""
+        name = self.scanNodeName(scanner)
+        if name is None:
+            print("Missing node name")
+        else:
+            node = self.graph.findNode(name)
+            if node is None:
+                print("No node named " + name)
+            else:
+                for arc in node.getArcs():
+                    print(arc.getFinish())
+
+    def bfsCommand(self, scanner):
+        """bfs node -- Conducts a breadth-first search starting at node"""
+        name = self.scanNodeName(scanner)
+        if name is None:
+            print("Missing node name")
+        else:
+            node = self.graph.findNode(name)
+            if node is None:
+                print("No node named " + name)
+            else:
+                bfs(node, print)
+
+    def dfsCommand(self, scanner):
+        """dfs node -- Conducts a depth-first search starting at node"""
+        name = self.scanNodeName(scanner)
+        if name is None:
+            dfs(self.graph, print)
+        else:
+            node = self.graph.findNode(name)
+            if node is None:
+                print("No node named " + name)
+            else:
+                dfs(node, print)
+
+    def hopsCommand(self, scanner):
+        """hops node -- Prints a breadth-first search including hop counts"""
+        def printNameAndDistance(node, distance):
+            print(node.getName() + " " + str(distance))
+        name = self.scanNodeName(scanner)
+        if name is None:
+            print("Missing node name")
+        else:
+            node = self.graph.findNode(name)
+            if node is None:
+                print("No node named " + name)
+            else:
+                bfs(node, printNameAndDistance)
+
+    def sortCommand(self, scanner):
+        """sort -- Displays a topological sort of the graph"""
+        def addToTimeline(node, timestamp):
+            sequence.insert(0, node)
+        sequence = [ ]
+        dfs(self.graph, finish=addToTimeline)
+        for node in sequence:
+            print(node)
+
+    def timestampCommand(self, scanner):
+        """timestamp -- Displays a depth-first search with timestamps"""
+        nodes = [ ]
+        discoveryTimes = { }
+        finishTimes = { }
+        def setDiscoveryTime(node, timestamp):
+            nodes.append(node)
+            discoveryTimes[node] = timestamp
+        def setFinishTime(node, timestamp):
+            finishTimes[node] = timestamp
+        dfs(self.graph, setDiscoveryTime, setFinishTime)
+        for node in nodes:
+            print(str(node) + "<" + str(discoveryTimes[node]) + ":" +
+                                    str(finishTimes[node]) + ">")
+
+    def treeCommand(self, scanner):
+        """tree start -- Construct and display a breadth-first tree"""
+        name = self.scanNodeName(scanner)
+        if name is None:
+            print("Missing node name")
+        else:
+            node = self.graph.findNode(name)
+            if node is None:
+                print("No node named " + name)
+            else:
+                g = Graph()
+                def visit(node, predecessor):
+                    g.addNode(node)
+                    if predecessor is not None:
+                        g.addArc(predecessor, node)
+                bfs(node, visit)
+                for arc in g.getArcs():
+                    print(arc)
+
+# Private functions
+
+    def scanNodeName(self, scanner):
+        """Reads the name of a node from the scanner."""
+        token = scanner.nextToken()
+        ttype = scanner.getTokenType(token)
+        if ttype == TokenScanner.EOF:
+            return None
+        elif ttype == TokenScanner.WORD or ttype == TokenScanner.NUMBER:
+            return token
+        elif ttype == TokenScanner.STRING:
+            return scanner.getStringValue(token)
+
+# Startup code
+
+if __name__ == "__main__":
+    GraphConsoleTest()
+>=>graph.py
+# File: graph.py
+
+"""
+This module defines the classes Graph, Node, and Arc, which are
+used for working with graphs.
+"""
+
+class Graph:
+    """Defines a graph as a set of nodes and a set of arcs."""
+
+    def __init__(self):
+        """Creates an empty graph."""
+        self.clear()
+
+    def clear(self):
+        """Removes all the nodes and arcs from the graph."""
+        self._nodes = { }
+        self._arcs = set()
+
+    def addNode(self, arg):
+        """
+        Adds a node to the graph.  The parameter to addNode is
+        either an existing Node object or a string.  If a node is
+        specified as a string, addNode looks up that string in the
+        dictionary of nodes.  If it exists, the existing node is
+        returned; if not, addNode creates a new node with that name.
+        The addNode method returns the Node object.
+        """
+        if type(arg) is str:
+            node = self.findNode(arg)
+            if node is None:
+                node = self.createNode(arg)
+        elif isinstance(arg, Node):
+            node = arg
+        else:
+            raise ValueError("Illegal node specification")
+        self._nodes[node.getName()] = node
+        return node
+
+    def addArc(self, a1, a2=None):
+        """
+        Adds an arc to the graph.  The parameters to addArc are
+        either a single Arc object or a pair of nodes, each of
+        which can be an existing Node object or a string.  If a
+        node is specified as a string, addArc looks up that name
+        in the dictionary of nodes.  If it exists, the existing
+        node is returned; if not, addArc creates a new node with
+        that name.  The addArc method returns the Arc object.
+        """
+        if isinstance(a1, Arc) and a2 is None:
+            arc = a1
+        else:
+            start = self.addNode(a1)
+            finish = self.addNode(a2)
+            arc = self.createArc(start, finish)
+        self._arcs.add(arc)
+        arc.getStart()._addArcFrom(arc)
+        arc.getFinish()._addArcTo(arc)
+        return arc
+
+    def findNode(self, name):
+        """Returns the node with the specified name, or None."""
+        return self._nodes.get(name)
+
+    def getNodes(self):
+        """Returns a sorted list of all the nodes in the graph."""
+        return [ node for node in sorted(self._nodes.values()) ]
+
+    def getArcs(self):
+        """Returns a sorted list of all the arcs in the graph."""
+        return [ arc for arc in sorted(self._arcs) ]
+
+# Implementation notes: Factory methods
+# -------------------------------------
+# The factory methods createNode and createArc are called to
+# create new nodes and arcs.  Clients who want to extend the
+# operation of the Graph class do so by defining new subclasses
+# for Graph, Node, and Arc and then override these factory
+# methods to produce Node and Arc objects of the proper class.
+
+    def createNode(self, name):
+        """Returns a Node with the specified name."""
+        return Node(name)
+
+    def createArc(self, start, finish):
+        """Returns a Arc between the specified nodes."""
+        return Arc(start, finish)
+
+# Overload standard methods
+
+    def __str__(self):
+        s = ""
+        for arc in getArcs():
+            if len(s) > 0:
+                s += ", "
+            s += str(arc)
+        return "<" + s + ">"
+
+    def __len__(self):
+        return len(self._nodes)
+
+# Implementation notes: Node class
+# --------------------------------
+# The Node class represents a single node in a graph, which is
+# identified by a unique name.  Each Node object includes a list
+# of the arcs that begin at that node.  The base class for Node
+# defines no additional attributes, but clients can define new
+# attributes for a node by creating a subclass and supplying
+# the appropriate getters and setters.
+
+class Node:
+
+    def __init__(self, name):
+        """Creates a graph node with the given name."""
+        self._name = name
+        self._arcsFrom = set()
+        self._arcsTo = set()
+
+    def getName(self):
+        """Returns the name of this node."""
+        return self._name
+
+    def getArcs(self):
+        """Equivalent to getArcsFrom (included for backward compatibility)."""
+        return self.getArcsFrom()
+
+    def getArcsFrom(self):
+        """Returns a list of all the arcs leaving this node."""
+        return [ arc for arc in sorted(self._arcsFrom) ]
+
+    def getArcsTo(self):
+        """Returns a list of all the arcs ending at this node."""
+        return [ arc for arc in sorted(self._arcsTo) ]
+
+    def getNeighbors(self):
+        """Returns a list of the nodes to which arcs exist."""
+        targets = set()
+        for arc in self._arcsFrom:
+            targets.add(arc.getFinish())
+        return [ node for node in sorted(targets) ]
+
+    def isConnectedTo(self, node):
+        """Returns True if any arcs connects to node."""
+        for arc in self._arcsFrom:
+            if arc.getFinish() is node:
+                return True
+        return False
+
+# Package methods called only by the Graph class
+
+    def _addArcFrom(self, arc):
+        """Adds an arc that starts at this node."""
+        if arc.getStart() is not self:
+            raise ValueError("Arc must start at the specified node")
+        self._arcsFrom.add(arc)
+
+    def _addArcTo(self, arc):
+        """Adds an arc that finishes at this node."""
+        if arc.getFinish() is not self:
+            raise ValueError("Arc must end at the specified node")
+        self._arcsTo.add(arc)
+
+# Implementation notes: scanOptions
+# ---------------------------------
+# The scanOptions method is called by the utility function that
+# reads a graph from a file whenever a node specification includes
+# an options string enclosed in parentheses.  The format for that
+# string will vary for different Node subclasses.  By default, the
+# options string is ignored.  Subclasses that need to specify
+# different attributes should overload this method so that the
+# options string includes the information appropriate to the
+# particular application.
+
+    def scanOptions(self, options):
+        """Scans the options string on a node definition line."""
+
+# Overload standard methods
+
+    def __str__(self):
+        return self._name
+
+# Implementation notes: Comparison operators
+# ------------------------------------------
+# The Node class defines the __lt__ and __le__ comparison
+# functions so that nodes can be sorted.  The __gt__ and __ge__
+# functions are defined implicitly because Python will
+# automatically flip the order.  The comparison is based on the
+# names of the nodes, which must be unique within a graph.
+
+    def __lt__(self, other):
+        if not isinstance(other, Node):
+            return NotImplemented
+        elif self is other:
+            return False
+        elif self._name < other._name:
+            return True
+        elif self._name > other._name:
+            return False
+        else:
+            raise KeyError("Duplicate names in a graph")
+
+    def __le__(self, other):
+        return self is other or self < other
+
+# Implementation notes: Arc class
+# -------------------------------
+# The Arc class represents a directed arc from one node to
+# another.  The Arc class itself also defines an attribute called
+# cost, which is used in many applications.  Clients can define
+# new attributes for an arc by creating a subclass with the
+# appropriate getters and setters.
+
+class Arc:
+    """This class defines a directed arc from one node to another."""
+
+    def __init__(self, start, finish):
+        """Creates an arc from start to finish."""
+        self._start = start
+        self._finish = finish
+        self._cost = 0
+
+    def getStart(self):
+        """Returns the node at the start of the arc."""
+        return self._start
+
+    def getFinish(self):
+        """Returns the node at the end of the arc."""
+        return self._finish
+
+    def setCost(self, cost):
+        """Sets the cost attribute for the arc."""
+        self._cost = cost
+
+    def getCost(self):
+        """Returns the cost attribute for the arc."""
+        return self._cost
+
+# Implementation notes: scanOptions
+# ---------------------------------
+# The scanOptions method is called by the utility function that
+# reads a graph from a file whenever the arc specification
+# includes an options string enclosed in parentheses.  The format
+# for that string will vary for different Arc subclasses.  By
+# default, the options string is a number, which is used to set
+# the predefined cost attribute.  Clients that need to specify
+# different attributes should overload this method so that the
+# options string includes the information appropriate to the
+# particular application.
+
+    def scanOptions(self, options):
+        """Scans the options string on an arc definition line."""
+        cost = float(options)
+        if cost == int(cost):
+            cost = int(cost)
+        self._cost = cost
+
+# Overload standard methods
+
+    def __str__(self):
+        suffix = ""
+        cost = self._cost
+        if cost != 0:
+            if cost == int(cost):
+                cost = int(cost)
+            suffix = " (" + str(cost) + ")"
+        return str(self._start) + " -> " + str(self._finish) + suffix
+
+# Implementation notes: Comparison operators
+# ------------------------------------------
+# The Arc class defines the __lt__ and __le__ comparison functions so
+# that arcs can be sorted.  The __gt__ and __ge__ functions are defined
+# implicitly because Python will automatically flip the order.  The
+# comparison first compares the start nodes using the Node comparison
+# order.  If the start nodes match, the comparison compares the finish
+# nodes.  If those match as well, as they do in parallel arcs between
+# the same pair of nodes, the comparison is based on the object id.
+
+    def __lt__(self, other):
+        if not isinstance(other, Arc):
+            return NotImplemented
+        elif self is other:
+            return False
+        elif self._start < other._start:
+            return True
+        elif self._start > other._start:
+            return False
+        elif self._finish < other._finish:
+            return True
+        elif self._finish > other._finish:
+            return False
+        else:
+            return id(self) < id(other)
+
+    def __le__(self, other):
+        return self is other or self < other
+>=>graphtools.py
+# File: graphtools.py
+
+"""
+This module defines the following tools for graphs:
+
+  readGraphData(g, file)  Loads graph data from the specified file
+  bfs(start, fn)          Conducts a breadth-first search from start
+  dfs(start, fn)          Conducts a depth-first search from start
+  dfs(g, fn)              Applies depth-first search to the entire graph
+"""
+
+from graph import Graph, Node, Arc
+from tokenscanner import TokenScanner
+from inspect import signature
+
+# Implementation notes: readGraphData
+# -----------------------------------
+# This function makes two passes over the data file, a "prescan" phase
+# that defines the nodes names and a "scan" phase that rereads the data,
+# interprets any options, and then updates the graph structure.  The
+# purpose of this design is to allow the same data files to work with
+# different graph representations, some of which require the nodes to
+# be defined before processing the arc information.
+
+def readGraphData(g, filename):
+    """
+    Reads graph data from the specified file.  The lines in the file
+    take one of two forms: (1) a node specification containing the
+    name of the node or (2) an arc specification that includes two
+    node names separated either by an operator indicating the type
+    of the arc.  The operator -> specifies a directed arc, and the
+    operator - specifies an undirected arc, which is implemented as
+    one arc in each direction.  Either form may be followed in the
+    file by an option string enclosed in parentheses, which is used
+    to initialize the attributes of the specific Node or Arc subclass.
+    The format of these option strings is defined by the subclass.
+    """
+    scanner = TokenScanner()
+    scanner.ignoreWhitespace()
+    scanner.scanNumbers()
+    scanner.scanStrings()
+    scanner.addOperator("->")
+    for phase in ["prescan", "scan"]:
+        with open(filename) as f:
+            for line in f:
+                line = line.strip()
+                if line != "" and not line.startswith("#"):
+                    scanner.setInput(line)
+                    n1 = g.addNode(scanNodeName(scanner))
+                    token = scanner.nextToken()
+                    if token == "-" or token == "->":
+                        op = token
+                        n2 = g.addNode(scanNodeName(scanner))
+                        token = scanner.nextToken()
+                    else:
+                        op = None
+                    if phase == "scan":
+                        options = None
+                        if token == "(":
+                            p1 = scanner.getPosition()
+                            p2 = line.rfind(")")
+                            options = line[p1:p2]
+                        if op is None:
+                            if options is not None:
+                                n1.scanOptions(options)
+                        else:
+                            arc = g.addArc(n1, n2)
+                            if options is not None:
+                                arc.scanOptions(options)
+                            if op == "-":
+                                arc = g.addArc(n2, n1)
+                                if options is not None:
+                                    arc.scanOptions(options)
+
+def scanNodeName(scanner):
+    """Reads the name of a node from the scanner."""
+    token = scanner.nextToken()
+    ttype = scanner.getTokenType(token)
+    if ttype == TokenScanner.WORD:
+        return token
+    elif ttype == TokenScanner.STRING:
+        return scanner.getStringValue(token)
+
+# Implementation notes: Traversal functions
+# -----------------------------------------
+# The two standard traversal functions, dfs and bfs, take callback
+# functions that are applied to the node.  In each case, however,
+# the implementation uses inspection to determine whether the
+# callback function requires additional keyword parameters that
+# are appropriate to that traversal.
+
+def dfs(start, fn=None, finish=None):
+    """
+    Conducts a depth-first search of the graph, beginning at start.
+    If fn is supplied, it is called on each node as it is visited.
+    If finish is supplied, it is called after completing the
+    recursive exploration of this node.  For each of the fn and
+    finish callback functions, the first argument is the node.
+    The implementation also checks to see whether the function
+    takes a parameter named "timestamp"; if so, that parameter
+    is passed as a keyword argument.
+    """
+    def innerDFS(node):
+        nonlocal t
+        if node not in visited:
+            t = t + 1
+            if fn is not None:
+                kwargs = { }
+                if hasNamedParameter(fn, "timestamp"):
+                    kwargs["timestamp"] = t
+                fn(node, **kwargs)
+            visited.add(node)
+            for arc in node.getArcs():
+                innerDFS(arc.getFinish())
+            t = t + 1
+            if finish is not None:
+                kwargs = { }
+                if hasNamedParameter(finish, "timestamp"):
+                    kwargs["timestamp"] = t
+                finish(node, **kwargs)
+    visited = set()
+    t = 0
+    if isinstance(start, Node):
+        innerDFS(start)
+    elif isinstance(start, Graph):
+        for node in start.getNodes():
+            innerDFS(node)
+
+# Implementation note: bfs
+# ------------------------
+# The extra information for distance and predecessor described in CLRS
+# is maintained here in dictionaries indexed by node.  The reason for
+# doing so is to avoid having the bfs function make changes to the
+# Node objects, which are conceptually in the client's domain.
+
+def bfs(start, fn=None):
+    """
+    Conducts a breadth-first search of the graph, beginning at start.
+    If fn is supplied, it is called on each node as it is visited.
+    The standard parameter to the callback function is the node, but
+    two others (distance and predecessor) are supplied as keyword
+    parameters if the callback function defines them.
+    """
+    visited = { start }
+    queue = [ start ]
+    distances = { start: 0 }
+    predecessors = { start: None }
+    while len(queue) > 0:
+        node = queue.pop(0)
+        if fn is not None:
+            kwargs = { }
+            if hasNamedParameter(fn, "distance"):
+                kwargs["distance"] = distances[node]
+            if hasNamedParameter(fn, "predecessor"):
+                kwargs["predecessor"] = predecessors[node]
+            fn(node, **kwargs)
+        for arc in node.getArcs():
+            finish = arc.getFinish()
+            if finish not in visited:
+                distances[finish] = distances[node] + 1
+                predecessors[finish] = node
+                queue.append(finish)
+                visited.add(finish)
+
+def hasNamedParameter(fn, name):
+    try:
+        for param in signature(fn).parameters:
+            if param == name:
+                return True
+    except ValueError:
+        pass
+    return False
