@@ -8,4 +8,4 @@ Week 7 has AVL trees, a tree balancing script, and work on priority queues.
 Week 9 has knuth-morris-pratt algotiyhm, and boyer-moore implementation.
 Week 10 has implemetnation of union-find for a maze algorithm and huffman tree practice.
 Week 11 has graph scripts with adding/removing arcs and nodes, and an algorithm for topological sort.
-Week 12 has Dijkstra's algorithm, and floyd-warshall implemenation.
+Week 12 has been split into two sections, one file has Dijkstra's algorithm, and the other has floyd-warshall implemenation.
